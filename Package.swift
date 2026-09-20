@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "Hammer",
     platforms: [
-        .iOS(.v12),
+        .iOS(.v15),
         .macOS(.v12),
     ],
     products: [
@@ -16,7 +16,7 @@ let package = Package(
           name: "Hammer",
           exclude: ["Info.plist"]
         ),
-        // iOS tests require TestHost through Xcode; SwiftPM runs the macOS tests.
+        // Use the Xcode project to run tests in TestHost on both platforms.
         .testTarget(
             name: "HammerTests",
             dependencies: ["Hammer"],

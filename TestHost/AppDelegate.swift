@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 @main
@@ -9,3 +10,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 }
+#elseif os(macOS)
+import AppKit
+
+@main
+final class AppDelegate: NSObject, NSApplicationDelegate {}
+#endif

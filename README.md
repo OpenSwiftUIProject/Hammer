@@ -33,7 +33,7 @@ Hammer is a touch, mouse, stylus and keyboard synthesis library for emulating us
 
 #### Requirements
 
-This fork requires Swift 5.9 and iOS 12.0 or macOS 12.0 or later.
+This fork requires Swift 5.9 and iOS 15.0 or macOS 12.0 or later.
 
 #### With [SwiftPM](https://swift.org/package-manager)
 
@@ -41,17 +41,15 @@ This fork requires Swift 5.9 and iOS 12.0 or macOS 12.0 or later.
 .package(url: "https://github.com/OpenSwiftUIProject/Hammer.git", branch: "main")
 ```
 
-#### With [CocoaPods](https://cocoapods.org/)
-
-```ruby
-pod 'HammerTests', '~> 0.13.1'
-```
-
 ## Setup
 
-Hammer unit tests need to run in a host application to be able to generate touches. To configure this select your project in the sidebar, select your test target, and choose a host application in the general tab. The host application can be your main application or an empty wrapper like [TestHost](./TestHost).
+The generated Xcode project runs iOS and macOS tests in [TestHost](./TestHost)
+through the shared `Hammer` scheme. Generate the project with `make generate`
+before running the tests.
 
-SwiftPM does not currently support creating applications. To use Hammer with SwiftPM frameworks you need to create an xcodeproj and setup a host application.
+To use Hammer in another Xcode project, select your test target and choose a host
+application in the General tab. This can be your main application or an empty
+wrapper like TestHost. SwiftPM does not create the host application.
 
 ## Usage
 

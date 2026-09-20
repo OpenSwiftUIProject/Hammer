@@ -1,8 +1,8 @@
 ## Contributing
 
 1. Fork the repo.
-1. For iOS tests, generate the project by running `make`.
-    - iOS tests require TestHost through Xcode. macOS tests run with SwiftPM.
+1. Generate the Xcode project by running `make`.
+    - The Hammer scheme runs iOS and macOS tests in TestHost.
 1. Run `make test-macOS` for macOS tests or `make test` for lint and both platforms.
     - Run iOS stylus tests on an iPad.
 1. Add tests if you are adding a feature or fixing a bug.

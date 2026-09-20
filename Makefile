@@ -27,7 +27,13 @@ lint: install-lint
 
 .PHONY: test-macOS
 test-macOS:
-	swift test
+	set -o pipefail && \
+		xcodebuild \
+		-project Hammer.xcodeproj \
+		-scheme Hammer \
+		-destination "platform=macOS" \
+		test \
+		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
 test-iPad:
 	set -o pipefail && \

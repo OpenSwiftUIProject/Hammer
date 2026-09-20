@@ -8,5 +8,8 @@
   actor for event generation and location lookup on both platforms.
 - Require Swift 5.9 or later.
 - Keep platform tests in one `HammerTests` target and add `make test-macOS`.
+- Require iOS 15 or macOS 12 in SwiftPM and the shared Xcode targets.
+- Run Xcode tests in TestHost on both iOS and macOS.
+- Remove the CocoaPods specification.
 
 Changes can be found here: https://github.com/lyft/Hammer/releases

@@ -179,7 +179,7 @@ final class AppKitEventGeneratorTests: XCTestCase {
     ) async throws {
         let application = NSApplication.shared
         let previousKeyWindow = application.keyWindow
-        // SwiftPM has no application host. A nonactivating panel can still receive test events.
+        // A nonactivating panel can receive events while the test host is in the background.
         let window = NSPanel(
             contentRect: NSRect(x: 200, y: 200, width: 200, height: 200),
             styleMask: [.titled, .nonactivatingPanel], backing: .buffered, defer: false
