@@ -61,6 +61,10 @@ To use Hammer in another Xcode project, select your test target and choose a hos
 application in the General tab. This can be your main application or an empty
 wrapper like TestHost. SwiftPM does not create the host application.
 
+GitHub Actions runs the hosted tests on macOS, iPhone, and iPad for pushes to
+`main` and pull requests targeting `main`. The test workflow uses Xcode 26.6
+and retains test logs and result bundles for seven days.
+
 ## Usage
 
 Call Hammer APIs from the main actor on both iOS and macOS. Mark test suites or methods with `@MainActor`.

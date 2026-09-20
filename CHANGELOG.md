@@ -15,5 +15,6 @@
 - Let nonactivating panels complete a multi-click sequence after losing keyboard focus.
 - Add a reusable offscreen `HammerWindow` for macOS tests, with an option to show
   the window for debugging. Keep test interactions from changing application focus.
+- Run hosted macOS and iOS tests for pushes and pull requests targeting `main`.
 
 Changes can be found here: https://github.com/lyft/Hammer/releases

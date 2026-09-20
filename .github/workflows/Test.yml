@@ -1,43 +1,79 @@
 name: Test
+
 on:
-  pull_request:
   push:
-    branches:
-    - main
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  test_ipad:
-    name: Test-iPad
-    runs-on: macOS-latest
+  test:
+    name: Test-${{ matrix.platform }}
+    runs-on: macos-26
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macOS
+            destination: platform=macOS
+          - platform: iPhone
+            destination: platform=iOS Simulator,OS=26.5,name=iPhone 17
+          - platform: iPad
+            destination: platform=iOS Simulator,OS=26.5,name=iPad Pro 13-inch (M5)
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Force Xcode 26.0
-        run: sudo xcode-select -switch /Applications/Xcode_26.0.app
-      - name: Make project
-        run: make generate
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Tuist
+        uses: jdx/mise-action@v4
+
+      - name: Generate workspace
+        run: |
+          export TEST_RESULTS="$RUNNER_TEMP/hammer-tests"
+          echo "TEST_RESULTS=$TEST_RESULTS" >> "$GITHUB_ENV"
+          mkdir -p "$TEST_RESULTS"
+          mise exec -- tuist generate --no-open 2>&1 | tee "$TEST_RESULTS/generate.log"
+
       - name: Run tests
-        run: make test-iPad
-  test_iphone:
-    name: Test-iPhone
-    runs-on: macOS-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Force Xcode 26.0
-        run: sudo xcode-select -switch /Applications/Xcode_26.0.app
-      - name: Make project
-        run: make generate
-      - name: Run tests
-        run: make test-iPhone
-  test_iphone_ios17:
-    name: Test-iPhone-iOS17
-    runs-on: macos-14
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Force Xcode 15.3
-        run: sudo xcode-select -switch /Applications/Xcode_15.3.app
-      - name: Make project
-        run: make generate
-      - name: Run tests
-        run: make test-iPhone-iOS17
+        env:
+          TEST_DESTINATION: ${{ matrix.destination }}
+        run: |
+          xcodebuild test \
+            -workspace Hammer.xcworkspace \
+            -scheme Hammer \
+            -destination "$TEST_DESTINATION" \
+            -parallel-testing-enabled NO \
+            -resultBundlePath "$TEST_RESULTS/Tests.xcresult" \
+            2>&1 | tee "$TEST_RESULTS/test.log" | xcbeautify --renderer github-actions
+
+      - name: Verify test results
+        run: |
+          xcrun xcresulttool get test-results summary \
+            --path "$TEST_RESULTS/Tests.xcresult" > "$TEST_RESULTS/summary.json"
+          jq -e '.result == "Passed" and .passedTests > 0 and .failedTests == 0' \
+            "$TEST_RESULTS/summary.json"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tests-${{ matrix.platform }}
+          path: ${{ env.TEST_RESULTS }}
+          retention-days: 7
+          if-no-files-found: warn
