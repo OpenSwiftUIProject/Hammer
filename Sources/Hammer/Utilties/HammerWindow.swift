@@ -144,4 +144,46 @@ private extension UIScene {
         return scenes.first { $0.screen == UIScreen.main } ?? scenes.first
     }
 }
+#elseif os(macOS)
+import AppKit
+
+/// A reusable test window that receives events without taking application focus.
+///
+/// The window stays outside all screens by default. Set `HAMMER_SHOW_TEST_WINDOW=1`
+/// or pass `showWindow: true` to display it while debugging.
+@MainActor
+public final class HammerWindow: NSWindow {
+    private var isClosed = false
+
+    // AppKit must treat this test surface as key to dispatch the first mouse down.
+    // Keep this state local to the window instead of changing NSApplication.keyWindow.
+    public override var isKeyWindow: Bool { !self.isClosed && self.isVisible }
+    public override var canBecomeKey: Bool { false }
+    public override var canBecomeMain: Bool { false }
+
+    public init(size: CGSize,
+                showWindow: Bool = ProcessInfo.processInfo.environment["HAMMER_SHOW_TEST_WINDOW"] == "1") {
+        let screens = NSScreen.screens.reduce(NSRect.zero) { $0.union($1.frame) }
+        let origin = NSPoint(x: screens.minX - size.width - 100, y: screens.minY)
+        super.init(contentRect: NSRect(origin: origin, size: size),
+                   styleMask: showWindow ? [.titled] : [.borderless], backing: .buffered, defer: false)
+        self.isReleasedWhenClosed = false
+        self.animationBehavior = .none
+        self.hasShadow = false
+        self.isExcludedFromWindowsMenu = true
+        self.title = "Hammer Tests"
+        if showWindow {
+            self.center()
+            self.orderFront(nil)
+        } else {
+            self.orderBack(nil)
+        }
+    }
+
+    public override func close() {
+        // AppKit must stop observing this window as key before it is destroyed.
+        self.isClosed = true
+        super.close()
+    }
+}
 #endif

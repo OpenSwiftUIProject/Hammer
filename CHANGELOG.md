@@ -12,5 +12,8 @@
 - Run Xcode tests in TestHost on both iOS and macOS.
 - Remove the CocoaPods specification.
 - Generate the Xcode workspace with Tuist and use automatic signing.
+- Let nonactivating panels complete a multi-click sequence after losing keyboard focus.
+- Add a reusable offscreen `HammerWindow` for macOS tests, with an option to show
+  the window for debugging. Keep test interactions from changing application focus.
 
 Changes can be found here: https://github.com/lyft/Hammer/releases

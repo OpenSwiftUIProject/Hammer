@@ -5,6 +5,8 @@ import XCTest
 
 @MainActor
 final class AppKitEventGeneratorTests: XCTestCase {
+    private static let window = HammerWindow(size: NSSize(width: 200, height: 200))
+
     func testClickRecognizerUsesExistingWindow() async throws {
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 200))
         let action = ActionRecorder()
@@ -16,6 +18,48 @@ final class AppKitEventGeneratorTests: XCTestCase {
             XCTAssertEqual(NSApp.windows, windows)
             XCTAssertTrue(events.mainView === view)
             XCTAssertTrue(events.window === view.window)
+        }
+    }
+
+    func testWindowReuseIsolatesContent() async throws {
+        let firstView = NSView()
+        let firstAction = ActionRecorder()
+        firstView.addGestureRecognizer(NSClickGestureRecognizer(target: firstAction,
+                                                               action: #selector(firstAction.record)))
+        var firstWindow: NSWindow?
+        try await withWindow(view: firstView) { events in
+            firstWindow = events.window
+            try await events.mouseClick()
+            try await events.waitUntil(firstAction.count == 1, timeout: 1)
+        }
+        XCTAssertNil(firstView.window)
+
+        let secondView = NSView()
+        let secondAction = ActionRecorder()
+        secondView.addGestureRecognizer(NSClickGestureRecognizer(target: secondAction,
+                                                                action: #selector(secondAction.record)))
+        try await withWindow(view: secondView) { events in
+            XCTAssertTrue(events.window === firstWindow)
+            try await events.mouseClick()
+            try await events.waitUntil(secondAction.count == 1, timeout: 1)
+            XCTAssertEqual(firstAction.count, 1)
+        }
+        XCTAssertNil(secondView.window)
+    }
+
+    func testClickPreservesApplicationKeyWindow() async throws {
+        let previousKeyWindow = NSApp.keyWindow
+        let view = NSView()
+        let action = ActionRecorder()
+        view.addGestureRecognizer(NSClickGestureRecognizer(target: action, action: #selector(action.record)))
+        try await withWindow(view: view) { events in
+            XCTAssertTrue(NSApp.keyWindow === previousKeyWindow)
+            if ProcessInfo.processInfo.environment["HAMMER_SHOW_TEST_WINDOW"] != "1" {
+                XCTAssertFalse(NSScreen.screens.contains { $0.frame.intersects(events.window.frame) })
+            }
+            try await events.mouseClick()
+            try await events.waitUntil(action.count == 1, timeout: 1)
+            XCTAssertTrue(NSApp.keyWindow === previousKeyWindow)
         }
     }
 
@@ -38,6 +82,59 @@ final class AppKitEventGeneratorTests: XCTestCase {
             try await events.mouseDoubleClick()
             try await events.waitUntil(action.count == 1, timeout: 1)
         }
+    }
+
+    func testDoubleClickAfterPanelResignsKey() async throws {
+        let previousKeyWindow = NSApp.keyWindow
+        let panel = NSPanel(contentRect: Self.window.frame, styleMask: [.titled, .nonactivatingPanel],
+                            backing: .buffered, defer: false)
+        panel.isReleasedWhenClosed = false
+        panel.animationBehavior = .none
+        panel.orderBack(nil)
+        panel.makeKey()
+        defer {
+            panel.close()
+            previousKeyWindow?.makeKey()
+        }
+        let view = NSView()
+        let action = ActionRecorder()
+        let recognizer = NSClickGestureRecognizer(target: action, action: #selector(action.record))
+        recognizer.numberOfClicksRequired = 2
+        view.addGestureRecognizer(recognizer)
+        try await withWindow(view: view, window: panel) { events in
+            try await events.mouseClick()
+            events.window.resignKey()
+            XCTAssertFalse(events.window.isKeyWindow)
+            XCTAssertFalse(events.isWindowReady)
+            do {
+                try await events.mouseClick()
+                XCTFail("Expected a window readiness error for a new click")
+            } catch HammerError.windowIsNotReadyForInteraction {}
+            try await events.wait(EventGenerator.multiClickInterval)
+            try await events.mouseDown(clickCount: 2)
+            try await events.wait(EventGenerator.mouseLiftDelay)
+            try await events.mouseUp()
+            try await events.waitUntil(action.count == 1, timeout: 1)
+        }
+    }
+
+    func testNonKeyWindowCannotContinueClick() async throws {
+        let window = NSWindow(
+            contentRect: Self.window.frame,
+            styleMask: [.titled], backing: .buffered, defer: false
+        )
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        window.orderBack(nil)
+        window.resignKey()
+        let events = try EventGenerator(window: window)
+        XCTAssertTrue(window.isVisible)
+        XCTAssertFalse(window.isKeyWindow)
+        XCTAssertFalse(events.isWindowReady)
+        do {
+            try await events.mouseDown(clickCount: 2)
+            XCTFail("Expected a window readiness error")
+        } catch HammerError.windowIsNotReadyForInteraction {}
     }
 
     func testDragRecognizer() async throws {
@@ -153,9 +250,11 @@ final class AppKitEventGeneratorTests: XCTestCase {
     func testRejectsDetachedAndForeignViews() async throws {
         XCTAssertThrowsError(try EventGenerator(view: NSView()))
         try await withWindow(view: NSView()) { events in
-            try await withWindow(view: NSView()) { other in
-                XCTAssertThrowsError(try other.mainView.windowHitPoint(for: events))
-            }
+            let other = HammerWindow(size: NSSize(width: 200, height: 200), showWindow: false)
+            defer { other.close() }
+            let view = NSView()
+            other.contentView = view
+            XCTAssertThrowsError(try view.windowHitPoint(for: events))
         }
     }
 
@@ -173,28 +272,30 @@ final class AppKitEventGeneratorTests: XCTestCase {
         }
     }
 
-    private func withWindow(
+}
+
+private extension AppKitEventGeneratorTests {
+    func withWindow(
         view: NSView,
+        window: NSWindow? = nil,
         body: (EventGenerator) async throws -> Void
     ) async throws {
-        let application = NSApplication.shared
-        let previousKeyWindow = application.keyWindow
-        // A nonactivating panel can receive events while the test host is in the background.
-        let window = NSPanel(
-            contentRect: NSRect(x: 200, y: 200, width: 200, height: 200),
-            styleMask: [.titled, .nonactivatingPanel], backing: .buffered, defer: false
-        )
-        window.isReleasedWhenClosed = false
+        let window = window ?? Self.window
         window.contentView = view
         window.setContentSize(NSSize(width: 200, height: 200))
         defer {
-            window.close()
-            previousKeyWindow?.makeKey()
+            window.makeFirstResponder(nil)
+            window.contentView = nil
         }
-        window.makeKeyAndOrderFront(nil)
         let events = try EventGenerator(view: view)
         try await events.waitUntilWindowIsReady()
-        try await body(events)
+        do {
+            try await body(events)
+        } catch {
+            try? await events.mouseUp()
+            throw error
+        }
+        try? await events.mouseUp()
     }
 }
 

@@ -330,7 +330,11 @@ public final class EventGenerator {
     }
 
     public var isWindowReady: Bool {
-        return self.window.isVisible && self.window.isKeyWindow
+        return self.hasVisibleWindowContent && self.window.isKeyWindow
+    }
+
+    private var hasVisibleWindowContent: Bool {
+        return self.window.isVisible
             && self.mainView.window === self.window && !self.mainView.isHiddenOrHasHiddenAncestor
             && !self.mainView.visibleRect.isEmpty
     }
@@ -349,7 +353,11 @@ public final class EventGenerator {
     public func mouseDown(at location: HammerLocatable? = nil, clickCount: Int = 1,
                           modifiers: NSEvent.ModifierFlags = []) async throws {
         try Task.checkCancellation()
-        guard self.isWindowReady else { throw HammerError.windowIsNotReadyForInteraction }
+        // A nonactivating panel can finish a multi-click sequence after it loses keyboard focus.
+        let canContinueClick = clickCount > 1 && self.window.styleMask.contains(.nonactivatingPanel)
+        guard self.hasVisibleWindowContent && (self.window.isKeyWindow || canContinueClick) else {
+            throw HammerError.windowIsNotReadyForInteraction
+        }
         guard self.mousePress == nil else { throw HammerError.mouseIsAlreadyDown }
         guard clickCount > 0 else { throw HammerError.invalidClickCount(clickCount) }
         let point = try (location ?? self.mainView).windowHitPoint(for: self)

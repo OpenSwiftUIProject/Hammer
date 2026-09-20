@@ -173,9 +173,20 @@ clicks, double clicks, long presses, and drags, including controls that run a
 nested mouse tracking loop. Trackpad touch streams are not synthesized.
 
 Create the generator from an existing `NSView`, `NSViewController`, or `NSWindow`.
-The caller owns the window and application activation. Hammer does not create a
-second window or change application focus. Keep AppKit tests on the main actor
-and run them serially.
+The caller owns the window and its content. `EventGenerator` does not create a
+window or change application focus. Keep AppKit tests on the main actor and run
+them serially.
+
+For isolated tests, create one `HammerWindow(size:)` for the suite or test host
+and replace its content between tests. It stays outside all screens and reports
+key state locally, so AppKit can process clicks while the application is in the
+background. It does not become `NSApplication.keyWindow`. Use a normal window
+when testing application activation or keyboard focus.
+
+Set `HAMMER_SHOW_TEST_WINDOW=1` in the test scheme's environment, or pass
+`showWindow: true`, to show the test window while debugging. Release any held
+mouse button and remove the content after each test. Close the window when the
+suite or host no longer needs it.
 
 ```swift
 @MainActor
