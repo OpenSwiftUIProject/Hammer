@@ -1,67 +1,61 @@
 .DEFAULT_GOAL := generate
 
-# Code Signing Settings
-
-NO_CODE_SIGN_SETTINGS = CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-
 # Install Tasks
 
 install-lint:
 	brew list swiftlint &>/dev/null || brew install swiftlint
 
-install-xcodegen:
-	brew list xcodegen &>/dev/null || brew install xcodegen
+install-tuist:
+	command -v mise >/dev/null || brew install mise
+	mise install
 
 install-xcbeautify:
 	brew list xcbeautify &>/dev/null || brew install xcbeautify
 
 # Run Tasks
 
-generate: install-xcodegen
-	xcodegen generate
+generate: install-tuist
+	mise exec -- tuist generate --no-open
 
 test: lint test-macOS test-iPad
 
 lint: install-lint
 	swiftlint lint --strict 2>/dev/null
 
-.PHONY: test-macOS
-test-macOS:
+.PHONY: generate test test-macOS test-iPad test-iPhone test-iPhone-iOS17
+
+test-macOS: install-xcbeautify
 	set -o pipefail && \
 		xcodebuild \
-		-project Hammer.xcodeproj \
+		-workspace Hammer.xcworkspace \
 		-scheme Hammer \
 		-destination "platform=macOS" \
-		test \
-		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
+		test | xcbeautify
 
-test-iPad:
+test-iPad: install-xcbeautify
 	set -o pipefail && \
 		xcodebuild \
-		-project Hammer.xcodeproj \
+		-workspace Hammer.xcworkspace \
 		-scheme Hammer \
 		-destination "name=iPad Pro 13-inch (M4)" \
-		test \
-		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
+		test | xcbeautify
 
-test-iPhone:
+test-iPhone: install-xcbeautify
 	set -o pipefail && \
 		xcodebuild \
-		-project Hammer.xcodeproj \
+		-workspace Hammer.xcworkspace \
 		-scheme Hammer \
 		-destination "name=iPhone 17" \
-		test \
-		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
+		test | xcbeautify
 
-test-iPhone-iOS17:
+test-iPhone-iOS17: install-xcbeautify
 	set -o pipefail && \
 		xcodebuild \
-		-project Hammer.xcodeproj \
+		-workspace Hammer.xcworkspace \
 		-scheme Hammer \
 		-destination "name=iPhone 15" \
 		-sdk iphonesimulator17.4 \
-		test \
-		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
+		test | xcbeautify
 
 # List all targets (from https://stackoverflow.com/questions/4219255/how-do-you-get-the-list-of-targets-in-a-makefile)
 

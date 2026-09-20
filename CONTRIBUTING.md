@@ -1,7 +1,8 @@
 ## Contributing
 
 1. Fork the repo.
-1. Generate the Xcode project by running `make`.
+1. Generate the Xcode workspace with Tuist by running `make`.
+    - Open `Hammer.xcworkspace`.
     - The Hammer scheme runs iOS and macOS tests in TestHost.
 1. Run `make test-macOS` for macOS tests or `make test` for lint and both platforms.
     - Run iOS stylus tests on an iPad.

@@ -11,5 +11,6 @@
 - Require iOS 15 or macOS 12 in SwiftPM and the shared Xcode targets.
 - Run Xcode tests in TestHost on both iOS and macOS.
 - Remove the CocoaPods specification.
+- Generate the Xcode workspace with Tuist and use automatic signing.
 
 Changes can be found here: https://github.com/lyft/Hammer/releases
