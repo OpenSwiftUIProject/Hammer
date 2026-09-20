@@ -1,3 +1,4 @@
+#if os(iOS)
 /// Representation of a key in a keyboard
 public enum KeyboardKey: UInt32 {
     case letterA = 0x04
@@ -175,3 +176,4 @@ extension KeyboardKey {
         return (key: key, shift: kShiftSymbolCharacters.contains(character))
     }
 }
+#endif

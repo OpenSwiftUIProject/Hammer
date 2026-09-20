@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 
 extension EventGenerator {
@@ -23,3 +24,4 @@ extension EventGenerator {
         public var waitForFrameRender: Bool = true
     }
 }
+#endif

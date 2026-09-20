@@ -1,5 +1,9 @@
-import Foundation
+#if os(macOS)
+import AppKit
+#elseif os(iOS)
 import UIKit
+#endif
+import Foundation
 
 extension EventGenerator {
     /// How to calculate visibility of a view
@@ -14,6 +18,7 @@ extension EventGenerator {
         case full
     }
 
+    #if os(iOS)
     /// Searches the view's subviews recursively for the first one that has the specified identifier.
     ///
     /// NOTE: This uses a level order traversal with complexity O(n), where n is number of nodes in the tree.
@@ -310,4 +315,40 @@ extension EventGenerator {
         let viewBounds = view.convert(view.bounds, to: self.window)
         return self.window.bounds.intersection(viewBounds).center
     }
+    #elseif os(macOS)
+    public func viewWithIdentifier(_ identifier: String) throws -> NSView {
+        func find(in view: NSView) -> NSView? {
+            if view.accessibilityIdentifier() == identifier { return view }
+            for subview in view.subviews {
+                if let match = find(in: subview) { return match }
+            }
+            return nil
+        }
+        guard let view = find(in: self.mainView) else { throw HammerError.unableToFindView(identifier: identifier) }
+        return view
+    }
+
+    func validateView(_ view: NSView) throws {
+        guard view.window === self.window else { throw HammerError.viewIsNotInHierarchy(view) }
+        guard !view.isHiddenOrHasHiddenAncestor, view.alphaValue > 0, !view.visibleRect.isEmpty else {
+            throw HammerError.viewIsNotVisible(view)
+        }
+    }
+
+    func hitView(at point: CGPoint) -> NSView? {
+        guard let content = self.window.contentView else { return nil }
+        let point = content.superview?.convert(point, from: nil) ?? point
+        return content.hitTest(point)
+    }
+
+    /// Returns a hittable point at the center of the view's visible area.
+    public func windowHitPoint(forView view: NSView) throws -> CGPoint {
+        try self.validateView(view)
+        let point = view.convert(view.visibleRect.center, to: nil)
+        guard let hit = self.hitView(at: point), hit === view || hit.isDescendant(of: view) else {
+            throw HammerError.viewIsNotHittable(view)
+        }
+        return point
+    }
+    #endif
 }

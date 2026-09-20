@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import UIKit
 
@@ -12,9 +13,9 @@ import UIKit
 }
 
 extension UIApplication {
-    typealias HIDEventCallback = (_ event: IOHIDEvent) -> Void
+    typealias HIDEventCallback = @MainActor (_ event: IOHIDEvent) -> Void
 
-    private static var hidEventCallbacks = [ObjectIdentifier: HIDEventCallback]()
+    private static var hidEventCallbacks = [UUID: HIDEventCallback]()
 
     @objc
     private func swizzledHandleHIDEvent(_ event: IOHIDEvent) {
@@ -43,11 +44,12 @@ extension UIApplication {
         self.runOnce
     }
 
-    static func registerForHIDEvents(_ object: ObjectIdentifier, callback: @escaping HIDEventCallback) {
-        self.hidEventCallbacks.updateValue(callback, forKey: object)
+    static func registerForHIDEvents(_ identifier: UUID, callback: @escaping HIDEventCallback) {
+        self.hidEventCallbacks.updateValue(callback, forKey: identifier)
     }
 
-    static func unregisterForHIDEvents(_ object: ObjectIdentifier) {
-        self.hidEventCallbacks.removeValue(forKey: object)
+    static func unregisterForHIDEvents(_ identifier: UUID) {
+        self.hidEventCallbacks.removeValue(forKey: identifier)
     }
 }
+#endif

@@ -2,6 +2,7 @@ import Hammer
 import XCTest
 import Foundation
 
+@MainActor
 final class DragTests: XCTestCase {
 
     func test_drag() throws {

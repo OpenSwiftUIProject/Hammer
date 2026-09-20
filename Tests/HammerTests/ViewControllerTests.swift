@@ -3,6 +3,7 @@ import Hammer
 import UIKit
 import XCTest
 
+@MainActor
 final class ViewControllerTests: XCTestCase {
     func testSignIn() throws {
         let viewController = TestSignInViewController()

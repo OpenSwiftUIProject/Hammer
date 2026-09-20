@@ -1,3 +1,4 @@
+#if os(iOS)
 import CoreGraphics
 import Foundation
 import UIKit
@@ -5,16 +6,16 @@ import UIKit
 private let kDefaultRadius: CGFloat = 5
 
 extension EventGenerator {
-    public static let fingerLiftDelay: TimeInterval = 0.05
-    public static let longPressHoldDelay: TimeInterval = 2.0
-    public static let multiTapInterval: TimeInterval = 0.15
-    public static let fingerMoveInterval: TimeInterval = 1 / 60
-    public static let pinchDuration: TimeInterval = 0.15
+    nonisolated public static let fingerLiftDelay: TimeInterval = 0.05
+    nonisolated public static let longPressHoldDelay: TimeInterval = 2.0
+    nonisolated public static let multiTapInterval: TimeInterval = 0.15
+    nonisolated public static let fingerMoveInterval: TimeInterval = 1 / 60
+    nonisolated public static let pinchDuration: TimeInterval = 0.15
 
-    public static let twoFingerDistance: CGFloat = 20
-    public static let rotationDistance: CGFloat = 100
-    public static let pinchLargeDistance: CGFloat = 200
-    public static let pinchSmallDistance: CGFloat = 20
+    nonisolated public static let twoFingerDistance: CGFloat = 20
+    nonisolated public static let rotationDistance: CGFloat = 100
+    nonisolated public static let pinchLargeDistance: CGFloat = 200
+    nonisolated public static let pinchSmallDistance: CGFloat = 20
 
     // MARK: - Base Actions
 
@@ -586,3 +587,4 @@ extension EventGenerator {
         return indices.compactMap { $0 ?? nextIndices.popFirst() }
     }
 }
+#endif

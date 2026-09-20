@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import UIKit
 
@@ -61,3 +62,4 @@ struct TouchStorage {
         }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import UIKit
 
@@ -104,3 +105,4 @@ private final class TouchView: UIView {
         }
     }
 }
+#endif

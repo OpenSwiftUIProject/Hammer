@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 struct HandInfo {
@@ -35,3 +36,4 @@ struct FingerInfo {
         return self.phase.isTouching
     }
 }
+#endif

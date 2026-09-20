@@ -1,3 +1,4 @@
+#if os(iOS)
 // swiftlint:disable type_name
 
 import CoreGraphics
@@ -207,3 +208,4 @@ let kGSEventPathInfoInRange: UInt8 = (1 << 0)
 let kGSEventPathInfoInTouch: UInt8 = (1 << 1)
 
 // swiftlint:enable type_name
+#endif

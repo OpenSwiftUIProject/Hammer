@@ -1,3 +1,4 @@
+#if os(iOS)
 import CoreFoundation
 import Darwin
 import Foundation
@@ -35,3 +36,4 @@ extension EventGenerator {
         completionBlock?()
     }
 }
+#endif

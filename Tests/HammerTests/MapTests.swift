@@ -12,6 +12,7 @@ private let kMapDefaultCamera = MKMapCamera(lookingAtCenter: kMapDefaultCoordina
                                             fromDistance: kMapDefaultCoordinateDistance,
                                             pitch: 0, heading: 0)
 
+@MainActor
 final class MapTests: XCTestCase {
     func testMapDrag() throws {
         try XCTSkipIf(kSkipMapTests, "Map tests are disabled because of flakiness")

@@ -2,6 +2,7 @@ import Hammer
 import UIKit
 import XCTest
 
+@MainActor
 final class StylusTests: XCTestCase {
     func testButtonTap() throws {
         try XCTSkipUnless(UIDevice.current.supportsStylus, "Stylus tests only run on iPad")

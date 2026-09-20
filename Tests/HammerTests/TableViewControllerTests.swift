@@ -9,6 +9,7 @@ import Foundation
 import Hammer
 import XCTest
 
+@MainActor
 final class TableViewControllerTests: XCTestCase {
 
     func testFindViewAfterScrolling() throws{

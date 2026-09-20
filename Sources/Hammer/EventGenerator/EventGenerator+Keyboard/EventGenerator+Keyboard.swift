@@ -1,7 +1,8 @@
+#if os(iOS)
 import Foundation
 
 extension EventGenerator {
-    public static let keyTypeInterval: TimeInterval = 0.02
+    nonisolated public static let keyTypeInterval: TimeInterval = 0.02
 
     // MARK: - Base Actions
 
@@ -154,3 +155,4 @@ extension EventGenerator {
         try self.wait(0.02)
     }
 }
+#endif

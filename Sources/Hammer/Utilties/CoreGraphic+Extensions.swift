@@ -5,7 +5,7 @@ extension CGPoint {
     /// Calculates the offset point by translating using the specified x and y values.
     ///
     /// - parameter x: The offset in the horizontal direction, positive means to the right.
-    /// - parameter y: The offset in the vertical direction, positive means down.
+    /// - parameter y: The offset along the y-axis of the point's coordinate system.
     ///
     /// - returns: The offset point.
     func offset(x: CGFloat, y: CGFloat) -> CGPoint {

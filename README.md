@@ -14,6 +14,7 @@
       <li><a href="#simulating-fingers">Simulating Fingers</a></li>
       <li><a href="#simulating-stylus">Simulating Stylus</a></li>
       <li><a href="#simulating-keyboard">Simulating Keyboard</a></li>
+      <li><a href="#appkit-macos">AppKit (macOS)</a></li>
       <li><a href="#finding-a-subview">Finding a Subview</a></li>
       <li><a href="#waiting">Waiting</a></li>
     </ul></li>
@@ -24,7 +25,7 @@
 
 ## Introduction
 
-Hammer is a touch, stylus and keyboard synthesis library for emulating user interaction events. It enables better ways of triggering UI actions in unit tests, replicating a real world environment as much as possible.
+Hammer is a touch, mouse, stylus and keyboard synthesis library for emulating user interaction events. It enables better ways of triggering UI actions in unit tests, replicating a real world environment as much as possible.
 
 ⚠️ IMPORTANT: This library makes extensive use of private APIs and should never be included in a production app.
 
@@ -32,12 +33,12 @@ Hammer is a touch, stylus and keyboard synthesis library for emulating user inte
 
 #### Requirements
 
-Hammer requires Swift 5.3 and iOS 11.0 or later.
+This fork requires Swift 5.9 and iOS 12.0 or macOS 12.0 or later.
 
 #### With [SwiftPM](https://swift.org/package-manager)
 
 ```swift
-.package(url: "https://github.com/lyft/Hammer.git", from: "0.13.0")
+.package(url: "https://github.com/OpenSwiftUIProject/Hammer.git", branch: "main")
 ```
 
 #### With [CocoaPods](https://cocoapods.org/)
@@ -53,6 +54,8 @@ Hammer unit tests need to run in a host application to be able to generate touch
 SwiftPM does not currently support creating applications. To use Hammer with SwiftPM frameworks you need to create an xcodeproj and setup a host application.
 
 ## Usage
+
+Call Hammer APIs from the main actor on both iOS and macOS. Mark test suites or methods with `@MainActor`.
 
 Hammer allows you to simulate fingers, stylus and keyboard events. It also provides various convenience methods to simulate higher level user interactions.
 
@@ -154,6 +157,46 @@ To type characters or longer strings and get automatic shift wrapping you can us
 ```swift
 try eventGenerator.keyType("This will type the string as specified, including symbols!")
 ```
+
+### AppKit (macOS)
+
+The AppKit backend sends left mouse events through `NSApplication`. It supports
+clicks, double clicks, long presses, and drags, including controls that run a
+nested mouse tracking loop. Trackpad touch streams are not synthesized.
+
+Create the generator from an existing `NSView`, `NSViewController`, or `NSWindow`.
+The caller owns the window and application activation. Hammer does not create a
+second window or change application focus. Keep AppKit tests on the main actor
+and run them serially.
+
+```swift
+@MainActor
+func testClick(in view: NSView) async throws {
+    let events = try EventGenerator(view: view)
+    try await events.waitUntilWindowIsReady()
+    try await events.mouseClick()
+    try await events.mouseDoubleClick()
+    try await events.mouseLongPress(duration: 0.5)
+    try await events.mouseDrag(
+        from: RelativeLocation(location: view, x: 0.25, y: 0.5),
+        to: RelativeLocation(location: view, x: 0.75, y: 0.5),
+        duration: 0.3
+    )
+}
+```
+
+AppKit operations are asynchronous so the application can process events while
+the test is suspended. High-level interactions release the mouse if they throw
+or are cancelled. When using `mouseDown`, `mouseMove`, and `mouseUp` directly,
+the caller must release the mouse on error.
+
+Locations accept window-coordinate points, rectangles, views, view controllers,
+and view accessibility identifiers. `RelativeLocation` uses top-left fractions
+for both flipped and unflipped views. `OffsetLocation` uses window coordinates,
+where positive y moves upward. `waitUntil(_:timeout:)` provides a bounded async
+wait for observable results.
+
+Run the AppKit regression tests with `swift test --filter AppKitEventGeneratorTests`.
 
 ### Finding a subview
 

@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import UIKit
 
@@ -15,3 +16,4 @@ struct StylusInfo {
         return self.phase.eventMask.union(.attribute)
     }
 }
+#endif

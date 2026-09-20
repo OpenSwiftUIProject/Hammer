@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 // Custom Window to have proper simulation of presentation and dismissal lifecycle events
@@ -143,3 +144,4 @@ private extension UIScene {
         return scenes.first { $0.screen == UIScreen.main } ?? scenes.first
     }
 }
+#endif

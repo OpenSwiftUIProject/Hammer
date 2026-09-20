@@ -3,6 +3,7 @@ import UIKit
 import XCTest
 
 // swiftlint:disable:next type_body_length
+@MainActor
 final class HandTests: XCTestCase {
     func testButtonTap() throws {
         let view = UIButton()

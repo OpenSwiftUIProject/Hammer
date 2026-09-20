@@ -3,6 +3,7 @@ import Hammer
 import UIKit
 import XCTest
 
+@MainActor
 final class WaitingTests: XCTestCase {
     func testWaitUntilVisibleWithIdentifier() throws {
         let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))

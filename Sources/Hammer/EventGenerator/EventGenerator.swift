@@ -1,14 +1,27 @@
+#if os(macOS)
+import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
 import CoreGraphics
 import Foundation
-import UIKit
 
+#if os(iOS)
+@MainActor
 private enum Storage {
     static var latestEventId: UInt32 = 0
 }
 
-/// Class for generating fake User Interaction events.
+#endif
+
+/// Generates user interaction events for tests.
+///
+/// On macOS, the caller owns the window, its content, and application activation.
+/// Run interactions serially on the main actor.
+@MainActor
 public final class EventGenerator {
-    typealias CompletionHandler = () -> Void
+    #if os(iOS)
+    typealias CompletionHandler = @MainActor () -> Void
 
     public enum WrappingAlignment {
         /// Expand to fill the full available space
@@ -27,6 +40,9 @@ public final class EventGenerator {
     var activeTouches = TouchStorage()
     var debugWindow = DebugVisualizerWindow()
     var eventCallbacks = [UInt32: CompletionHandler]()
+
+    // Deferred cleanup can run after the generator's address is reused.
+    private let eventRegistrationID = UUID()
 
     /// The default sender id for all events.
     ///
@@ -50,7 +66,7 @@ public final class EventGenerator {
         self.debugWindow.frame = self.window.frame
 
         UIApplication.swizzle()
-        UIApplication.registerForHIDEvents(ObjectIdentifier(self)) { [weak self] event in
+        UIApplication.registerForHIDEvents(self.eventRegistrationID) { [weak self] event in
             self?.markerEventReceived(event)
         }
     }
@@ -101,10 +117,18 @@ public final class EventGenerator {
     }
 
     deinit {
-        UIApplication.unregisterForHIDEvents(ObjectIdentifier(self))
-        self.debugWindow.removeFromScene()
-        if let window = self.window as? HammerWindow {
-            window.dismissContained()
+        // The last reference can be released off the main actor. Retain the windows until cleanup runs.
+        let cleanup: @MainActor @Sendable () -> Void = { [eventRegistrationID, debugWindow, window] in
+            UIApplication.unregisterForHIDEvents(eventRegistrationID)
+            debugWindow.removeFromScene()
+            if let window = window as? HammerWindow {
+                window.dismissContained()
+            }
+        }
+        if #available(iOS 13.0, *), Thread.isMainThread {
+            MainActor.assumeIsolated(cleanup)
+        } else {
+            DispatchQueue.main.async(execute: cleanup)
         }
     }
 
@@ -264,11 +288,225 @@ public final class EventGenerator {
             UserDefaults.standard.set(true, forKey: simAccessibilityActivatedKey)
         }
     }
+    #elseif os(macOS)
+    public let window: NSWindow
+    public let mainView: NSView
+
+    nonisolated public static let mouseLiftDelay: TimeInterval = 0.05
+    nonisolated public static let multiClickInterval: TimeInterval = 0.15
+    nonisolated public static let longPressHoldDelay: TimeInterval = 2
+    nonisolated public static let mouseMoveInterval: TimeInterval = 1 / 60
+
+    private struct MousePress {
+        var location: CGPoint
+        let modifiers: NSEvent.ModifierFlags
+        let eventNumber: Int
+        let clickCount: Int
+    }
+
+    private static var latestEventNumber = 0
+    private var mousePress: MousePress?
+    private var isSendingMouseDown = false
+    private var trackingMouseUp: CheckedContinuation<Void, Never>?
+
+    /// Uses a view that is already attached to a window. Does not create or activate a window.
+    public init(view: NSView) throws {
+        guard let window = view.window else {
+            throw HammerError.viewIsNotInHierarchy(view)
+        }
+        self.window = window
+        self.mainView = view
+    }
+
+    public convenience init(viewController: NSViewController) throws {
+        try self.init(view: viewController.view)
+    }
+
+    public convenience init(window: NSWindow) throws {
+        guard let view = window.contentView else {
+            throw HammerError.windowIsNotReadyForInteraction
+        }
+        try self.init(view: view)
+    }
+
+    public var isWindowReady: Bool {
+        return self.window.isVisible && self.window.isKeyWindow
+            && self.mainView.window === self.window && !self.mainView.isHiddenOrHasHiddenAncestor
+            && !self.mainView.visibleRect.isEmpty
+    }
+
+    public func waitUntilWindowIsReady(timeout: TimeInterval = 3) async throws {
+        do {
+            try await self.waitUntil(self.isWindowReady, timeout: timeout)
+        } catch HammerError.waitConditionTimeout {
+            throw HammerError.windowIsNotReadyForInteraction
+        }
+        self.mainView.layoutSubtreeIfNeeded()
+        self.window.displayIfNeeded()
+    }
+
+    /// Sends a left mouse down. Locations use window coordinates; nil uses the view's center.
+    public func mouseDown(at location: HammerLocatable? = nil, clickCount: Int = 1,
+                          modifiers: NSEvent.ModifierFlags = []) async throws {
+        try Task.checkCancellation()
+        guard self.isWindowReady else { throw HammerError.windowIsNotReadyForInteraction }
+        guard self.mousePress == nil else { throw HammerError.mouseIsAlreadyDown }
+        guard clickCount > 0 else { throw HammerError.invalidClickCount(clickCount) }
+        let point = try (location ?? self.mainView).windowHitPoint(for: self)
+        guard point.x.isFinite, point.y.isFinite, self.hitView(at: point) != nil else {
+            throw HammerError.pointIsNotHittable(point)
+        }
+        EventGenerator.latestEventNumber &+= 1
+        let press = MousePress(location: point, modifiers: modifiers,
+                               eventNumber: EventGenerator.latestEventNumber, clickCount: clickCount)
+        let event = try self.event(type: .leftMouseDown, press: press)
+        self.mousePress = press
+        await self.sendEvent(event)
+    }
+
+    /// Releases the left mouse button, including when the calling task is cancelled.
+    public func mouseUp() async throws {
+        guard let press = self.mousePress else { throw HammerError.mouseIsNotDown }
+        let event = try self.event(type: .leftMouseUp, press: press)
+        self.mousePress = nil
+        await self.sendEvent(event)
+    }
+
+    /// Moves a held mouse button to a location. The destination may be outside the starting view.
+    public func mouseMove(to location: HammerLocatable) async throws {
+        try Task.checkCancellation()
+        guard var press = self.mousePress else { throw HammerError.mouseIsNotDown }
+        let point = try location.windowHitPoint(for: self)
+        guard point.x.isFinite, point.y.isFinite else { throw HammerError.pointIsNotHittable(point) }
+        let previousLocation = press.location
+        press.location = point
+        var event = try self.event(type: .leftMouseDragged, press: press)
+        if let cgEvent = event.cgEvent {
+            cgEvent.setDoubleValueField(.mouseEventDeltaX, value: point.x - previousLocation.x)
+            cgEvent.setDoubleValueField(.mouseEventDeltaY, value: previousLocation.y - point.y)
+            if let movedEvent = NSEvent(cgEvent: cgEvent) { event = movedEvent }
+        }
+        self.mousePress = press
+        await self.sendEvent(event)
+    }
+
+    /// Interpolates a held mouse button's position over the specified duration.
+    public func mouseMove(to location: HammerLocatable, duration: TimeInterval) async throws {
+        try Self.validateDuration(duration)
+        guard let start = self.mousePress?.location else { throw HammerError.mouseIsNotDown }
+        let end = try location.windowHitPoint(for: self)
+        let started = ProcessInfo.processInfo.systemUptime
+        while duration > 0 {
+            let elapsed = ProcessInfo.processInfo.systemUptime - started
+            guard elapsed < duration else { break }
+            let fraction = elapsed / duration
+            try await self.mouseMove(to: CGPoint(x: start.x + (end.x - start.x) * fraction,
+                                                y: start.y + (end.y - start.y) * fraction))
+            try await self.wait(min(Self.mouseMoveInterval, duration - elapsed))
+        }
+        try await self.mouseMove(to: end)
+    }
+
+    /// Clicks with the left mouse button. Multiple clicks carry increasing AppKit click counts.
+    public func mouseClick(at location: HammerLocatable? = nil, numberOfTimes count: Int = 1,
+                           interval: TimeInterval = EventGenerator.multiClickInterval,
+                           modifiers: NSEvent.ModifierFlags = []) async throws {
+        guard count > 0 else { throw HammerError.invalidClickCount(count) }
+        try Self.validateDuration(interval)
+        for index in 0..<count {
+            try await self.withMouseDown(at: location, clickCount: index + 1, modifiers: modifiers) {
+                try await self.wait(Self.mouseLiftDelay)
+            }
+            if index < count - 1 { try await self.wait(interval) }
+        }
+    }
+
+    public func mouseDoubleClick(at location: HammerLocatable? = nil,
+                                 interval: TimeInterval = EventGenerator.multiClickInterval,
+                                 modifiers: NSEvent.ModifierFlags = []) async throws {
+        try await self.mouseClick(at: location, numberOfTimes: 2, interval: interval, modifiers: modifiers)
+    }
+
+    public func mouseLongPress(at location: HammerLocatable? = nil,
+                               duration: TimeInterval = EventGenerator.longPressHoldDelay,
+                               modifiers: NSEvent.ModifierFlags = []) async throws {
+        try Self.validateDuration(duration)
+        try await self.withMouseDown(at: location, modifiers: modifiers) {
+            try await self.wait(duration)
+        }
+    }
+
+    public func mouseDrag(from start: HammerLocatable? = nil, to end: HammerLocatable,
+                          duration: TimeInterval, modifiers: NSEvent.ModifierFlags = []) async throws {
+        try Self.validateDuration(duration)
+        try await self.withMouseDown(at: start, modifiers: modifiers) {
+            try await self.mouseMove(to: end, duration: duration)
+        }
+    }
+
+    private func withMouseDown(at location: HammerLocatable?, clickCount: Int = 1,
+                               modifiers: NSEvent.ModifierFlags,
+                               body: () async throws -> Void) async throws {
+        try await self.mouseDown(at: location, clickCount: clickCount, modifiers: modifiers)
+        do {
+            try await body()
+        } catch {
+            try? await self.mouseUp()
+            throw error
+        }
+        try await self.mouseUp()
+    }
+
+    private func event(type: NSEvent.EventType, press: MousePress) throws -> NSEvent {
+        guard let event = NSEvent.mouseEvent(
+            with: type, location: press.location, modifierFlags: press.modifiers,
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: self.window.windowNumber,
+            context: nil, eventNumber: press.eventNumber, clickCount: press.clickCount,
+            pressure: type == .leftMouseUp ? 0 : 1
+        ) else {
+            throw HammerError.couldNotCreateMouseEvent
+        }
+        return event
+    }
+
+    private func sendEvent(_ event: NSEvent) async {
+        await withCheckedContinuation { continuation in
+            // Start dispatch outside a main queue job. A control can enter a nested tracking loop
+            // in mouseDown; the suspended test must be able to resume there and send mouseUp.
+            let dispatch: @MainActor @Sendable () -> Void = {
+                if RunLoop.current.currentMode == .eventTracking {
+                    // Tracking controls read from nextEvent instead of NSApplication.sendEvent.
+                    NSApp.postEvent(event, atStart: false)
+                    if event.type == .leftMouseUp && self.isSendingMouseDown {
+                        self.trackingMouseUp = continuation
+                    } else {
+                        continuation.resume()
+                    }
+                } else {
+                    continuation.resume()
+                    if event.type == .leftMouseDown { self.isSendingMouseDown = true }
+                    NSApp.sendEvent(event)
+                    if event.type == .leftMouseDown {
+                        self.isSendingMouseDown = false
+                        // Return from mouseUp only after the tracking control has finished.
+                        self.trackingMouseUp?.resume()
+                        self.trackingMouseUp = nil
+                    }
+                }
+            }
+            RunLoop.main.perform(inModes: [.default, .eventTracking]) {
+                MainActor.assumeIsolated(dispatch)
+            }
+        }
+    }
+    #endif
 }
 
+#if os(iOS)
 // Bypasses deprecation warning for `isIgnoringInteractionEvents`
 private protocol UIApplicationDeprecated {
     var isIgnoringInteractionEvents: Bool { get }
 }
 
 extension UIApplication: UIApplicationDeprecated {}
+#endif

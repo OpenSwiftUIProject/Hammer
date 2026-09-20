@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 extension UITouch.Phase {
@@ -110,3 +111,4 @@ extension UIView {
         return isVisible(currentView: self)
     }
 }
+#endif

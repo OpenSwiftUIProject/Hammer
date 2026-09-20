@@ -1,3 +1,4 @@
+#if os(iOS)
 import CoreFoundation
 import Darwin
 
@@ -20,3 +21,4 @@ struct BackBoardServices {
                                                    to: CHIDEventSetDigitizerInfo.self)
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 public enum FingerIndex: UInt32, CaseIterable {
@@ -21,3 +22,4 @@ public enum FingerIndex: UInt32, CaseIterable {
 extension Array where Element == FingerIndex? {
     public static let automatic: [FingerIndex?] = []
 }
+#endif

@@ -13,6 +13,7 @@ private let kMapDefaultCamera = MKMapCamera(lookingAtCenter: kMapDefaultCoordina
                                             pitch: 0, heading: 0)
 
 /// These tests are used to generate the recording for the readme, too slow for normal testing
+@MainActor
 final class DemoTests: XCTestCase {
     func testASwitchToggleOnOff() throws {
         try XCTSkipIf(kSkipDemoTests, "Demo tests are disabled")

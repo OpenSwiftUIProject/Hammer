@@ -1,5 +1,10 @@
+#if os(macOS)
+import AppKit
+#elseif os(iOS)
 import UIKit
+#endif
 
+@MainActor
 public protocol HammerLocatable {
     func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint
 }
@@ -16,6 +21,19 @@ extension CGRect: HammerLocatable {
     }
 }
 
+#if os(macOS)
+extension NSView: HammerLocatable {
+    public func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
+        return try eventGenerator.windowHitPoint(forView: self)
+    }
+}
+
+extension NSViewController: HammerLocatable {
+    public func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
+        return try self.view.windowHitPoint(for: eventGenerator)
+    }
+}
+#elseif os(iOS)
 extension UIView: HammerLocatable {
     public func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
         return try eventGenerator.windowHitPoint(forView: self)
@@ -27,6 +45,7 @@ extension UIViewController: HammerLocatable {
         return try self.view.windowHitPoint(for: eventGenerator)
     }
 }
+#endif
 
 extension String: HammerLocatable {
     public func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
@@ -34,7 +53,8 @@ extension String: HammerLocatable {
     }
 }
 
-/// Creates an absolute offset for a location in screen points.
+/// Creates an absolute offset for a location in window coordinates.
+/// Positive y moves down on iOS and up on macOS.
 public struct OffsetLocation: HammerLocatable {
     public let location: HammerLocatable?
     public let x: CGFloat
@@ -54,17 +74,29 @@ public struct OffsetLocation: HammerLocatable {
     public func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
         let location = self.location ?? eventGenerator.mainView
         let hitPoint = try location.windowHitPoint(for: eventGenerator)
-        return CGPoint(x: hitPoint.x + self.x,
-                       y: hitPoint.y + self.y)
+        return hitPoint.offset(x: self.x, y: self.y)
     }
 }
 
 /// Creates a relative location for a view.
 public struct RelativeLocation: HammerLocatable {
+    #if os(macOS)
+    public let view: NSView?
+    #elseif os(iOS)
     public let view: UIView?
+    #endif
     public let x: CGFloat
     public let y: CGFloat
 
+    #if os(macOS)
+    /// Uses fractions of the view's bounds, from the top left (0, 0) to the bottom right (1, 1).
+    /// Values outside this range can be used to drag outside the view. Nil uses the default view.
+    public init(location view: NSView? = nil, x: CGFloat, y: CGFloat) {
+        self.view = view
+        self.x = x
+        self.y = y
+    }
+    #elseif os(iOS)
     /// Creates a relative location for a view
     ///
     /// Values for x and y are relative to the dimensions of the view. From 0 to 1, 0 being the top/left of
@@ -79,11 +111,21 @@ public struct RelativeLocation: HammerLocatable {
         self.x = x
         self.y = y
     }
+    #endif
 
     public func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
         let view = self.view ?? eventGenerator.mainView
+        #if os(macOS)
+        try eventGenerator.validateView(view)
+        let bounds = view.bounds
+        let point = CGPoint(x: bounds.minX + bounds.width * self.x,
+                            y: view.isFlipped ? bounds.minY + bounds.height * self.y
+                                             : bounds.maxY - bounds.height * self.y)
+        return view.convert(point, to: nil)
+        #else
         let hitPoint = try eventGenerator.windowHitPoint(forView: view)
         return CGPoint(x: hitPoint.x - view.bounds.center.x + view.bounds.width * self.x,
                        y: hitPoint.y - view.bounds.center.y + view.bounds.height * self.y)
+        #endif
     }
 }

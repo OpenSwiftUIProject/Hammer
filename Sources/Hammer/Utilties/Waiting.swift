@@ -1,8 +1,11 @@
 import Foundation
+#if os(iOS)
 import UIKit
 import XCTest
+#endif
 
 extension EventGenerator {
+    #if os(iOS)
     /// Object to handle waiting
     public final class Waiter {
         public enum State {
@@ -279,4 +282,32 @@ extension EventGenerator {
             FrameTracker.shared.addNextFrameListener { try? waiter.complete() }
         }, timeout: timeout)
     }
+    #elseif os(macOS)
+    /// Suspends the test task so AppKit can process events and timer callbacks.
+    public func wait(_ interval: TimeInterval) async throws {
+        try Self.validateDuration(interval)
+        try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+    }
+
+    public func waitUntil(_ condition: @autoclosure () throws -> Bool, timeout: TimeInterval,
+                          checkInterval: TimeInterval = 0.01) async throws {
+        try Self.validateDuration(timeout)
+        try Self.validateDuration(checkInterval)
+        guard checkInterval > 0 else { throw HammerError.invalidDuration(checkInterval) }
+        let deadline = ProcessInfo.processInfo.systemUptime + timeout
+        while true {
+            try Task.checkCancellation()
+            if try condition() { return }
+            let remaining = deadline - ProcessInfo.processInfo.systemUptime
+            guard remaining > 0 else { throw HammerError.waitConditionTimeout(timeout) }
+            try await self.wait(min(remaining, checkInterval))
+        }
+    }
+
+    static func validateDuration(_ duration: TimeInterval) throws {
+        guard duration.isFinite, duration >= 0, duration < Double(UInt64.max) / 1_000_000_000 else {
+            throw HammerError.invalidDuration(duration)
+        }
+    }
+    #endif
 }
