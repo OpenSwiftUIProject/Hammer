@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 private var kActionKey: UInt8 = 0
@@ -45,3 +46,4 @@ extension UIGestureRecognizer {
         self.actionWrappers.append(target)
     }
 }
+#endif

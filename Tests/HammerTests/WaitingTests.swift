@@ -1,3 +1,4 @@
+#if os(iOS)
 import CoreGraphics
 import Hammer
 import UIKit
@@ -126,3 +127,4 @@ final class WaitingTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
     }
 }
+#endif

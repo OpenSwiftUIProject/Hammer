@@ -1,3 +1,4 @@
+#if os(iOS)
 import CoreGraphics
 import UIKit
 
@@ -57,3 +58,4 @@ extension UIView {
         ].compactMap { $0 })
     }
 }
+#endif

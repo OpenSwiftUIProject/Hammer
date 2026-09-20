@@ -1,3 +1,4 @@
+#if os(iOS)
 import Hammer
 import XCTest
 import Foundation
@@ -21,3 +22,4 @@ final class DragTests: XCTestCase {
     }
 
 }
+#endif

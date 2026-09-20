@@ -20,10 +20,14 @@ install-xcbeautify:
 generate: install-xcodegen
 	xcodegen generate
 
-test: lint test-iPad
+test: lint test-macOS test-iPad
 
 lint: install-lint
 	swiftlint lint --strict 2>/dev/null
+
+.PHONY: test-macOS
+test-macOS:
+	swift test
 
 test-iPad:
 	set -o pipefail && \

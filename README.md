@@ -196,7 +196,8 @@ for both flipped and unflipped views. `OffsetLocation` uses window coordinates,
 where positive y moves upward. `waitUntil(_:timeout:)` provides a bounded async
 wait for observable results.
 
-Run the AppKit regression tests with `swift test --filter AppKitEventGeneratorTests`.
+Run the AppKit regression tests with `make test-macOS`.
+The shared `HammerTests` target selects tests with `#if os(macOS)` and `#if os(iOS)`.
 
 ### Finding a subview
 

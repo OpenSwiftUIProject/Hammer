@@ -1,3 +1,4 @@
+#if os(iOS)
 import Hammer
 import UIKit
 import XCTest
@@ -71,3 +72,4 @@ final class StylusTests: XCTestCase {
         XCTAssertFalse(view.isOn)
     }
 }
+#endif

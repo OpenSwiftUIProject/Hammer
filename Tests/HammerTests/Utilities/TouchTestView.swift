@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 final class TouchTestView: UIView {
@@ -11,3 +12,4 @@ final class TouchTestView: UIView {
   }
 
 }
+#endif

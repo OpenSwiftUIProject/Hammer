@@ -1,3 +1,4 @@
+#if os(iOS)
 import Hammer
 import UIKit
 import XCTest
@@ -412,3 +413,4 @@ final class HandTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: expectations, timeout: 1, enforceOrder: true), .completed)
     }
 }
+#endif

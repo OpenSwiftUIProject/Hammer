@@ -5,6 +5,7 @@
 //  Created by Łukasz Rutkowski on 28/07/2021.
 //
 
+#if os(iOS)
 import Foundation
 import Hammer
 import XCTest
@@ -45,3 +46,4 @@ final class TableViewController: UITableViewController {
         return cell
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import Hammer
 import UIKit
@@ -175,3 +176,4 @@ private final class TestProfileViewController: UIViewController {
         ])
     }
 }
+#endif

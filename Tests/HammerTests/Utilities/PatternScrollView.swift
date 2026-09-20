@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import UIKit
 
@@ -76,3 +77,4 @@ final class PatternView: UIView {
         }
     }
 }
+#endif

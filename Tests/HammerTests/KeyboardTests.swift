@@ -1,3 +1,4 @@
+#if os(iOS)
 @testable import Hammer
 import UIKit
 import XCTest
@@ -205,3 +206,4 @@ final class KeyboardTests: XCTestCase {
         }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if os(iOS)
 import CoreLocation
 import CoreGraphics
 import XCTest
@@ -25,3 +26,4 @@ func XCTAssertEqual(_ expression1: @autoclosure () -> CGPoint,
     XCTAssertEqual(point1.x, point2.x, accuracy: accuracy, message(), file: file, line: line)
     XCTAssertEqual(point1.y, point2.y, accuracy: accuracy, message(), file: file, line: line)
 }
+#endif

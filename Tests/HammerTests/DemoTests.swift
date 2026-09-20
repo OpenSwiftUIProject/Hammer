@@ -1,3 +1,4 @@
+#if os(iOS)
 import Hammer
 import UIKit
 import XCTest
@@ -95,3 +96,4 @@ private final class MapView: MKMapView {
         fatalError("init(coder:) has not been implemented")
     }
 }
+#endif

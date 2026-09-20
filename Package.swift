@@ -16,8 +16,11 @@ let package = Package(
           name: "Hammer",
           exclude: ["Info.plist"]
         ),
-        .testTarget(name: "HammerAppKitTests", dependencies: ["Hammer"]),
-        // Disabled because SPM does not support running on TestHost yet
-        // .testTarget(name: "HammerTests", dependencies: ["Hammer"]),
+        // iOS tests require TestHost through Xcode; SwiftPM runs the macOS tests.
+        .testTarget(
+            name: "HammerTests",
+            dependencies: ["Hammer"],
+            exclude: ["Info.plist"]
+        ),
     ]
 )
