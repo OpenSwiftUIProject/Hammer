@@ -348,7 +348,11 @@ public final class EventGenerator {
         self.mainView.layoutSubtreeIfNeeded()
         self.window.displayIfNeeded()
     }
+    #endif
+}
 
+#if os(macOS)
+extension EventGenerator {
     /// Sends a left mouse down. Locations use window coordinates; nil uses the view's center.
     public func mouseDown(at location: HammerLocatable? = nil, clickCount: Int = 1,
                           modifiers: NSEvent.ModifierFlags = []) async throws {
@@ -507,8 +511,8 @@ public final class EventGenerator {
             }
         }
     }
-    #endif
 }
+#endif
 
 #if os(iOS)
 // Bypasses deprecation warning for `isIgnoringInteractionEvents`

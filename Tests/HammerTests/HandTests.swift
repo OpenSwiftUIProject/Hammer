@@ -3,8 +3,8 @@ import Hammer
 import UIKit
 import XCTest
 
-// swiftlint:disable:next type_body_length
 @MainActor
+// swiftlint:disable:next type_body_length
 final class HandTests: XCTestCase {
     func testButtonTap() throws {
         let view = UIButton()

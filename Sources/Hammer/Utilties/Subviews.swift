@@ -324,7 +324,9 @@ extension EventGenerator {
             }
             return nil
         }
-        guard let view = find(in: self.mainView) else { throw HammerError.unableToFindView(identifier: identifier) }
+        guard let view = find(in: self.mainView) else {
+            throw HammerError.unableToFindView(identifier: identifier)
+        }
         return view
     }
 
