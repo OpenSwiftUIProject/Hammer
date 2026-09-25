@@ -161,6 +161,11 @@ public final class HammerWindow: NSWindow {
     public override var canBecomeKey: Bool { false }
     public override var canBecomeMain: Bool { false }
 
+    // AppKit 15 uses this selector when it selects gesture recognizers for a mouse event.
+    // Match the public key state without changing application focus or first-mouse behavior.
+    @objc(_isKeyWindow)
+    private func isKeyWindowForEventDelivery() -> Bool { self.isKeyWindow }
+
     public init(size: CGSize,
                 showWindow: Bool = ProcessInfo.processInfo.environment["HAMMER_SHOW_TEST_WINDOW"] == "1") {
         let screens = NSScreen.screens.reduce(NSRect.zero) { $0.union($1.frame) }

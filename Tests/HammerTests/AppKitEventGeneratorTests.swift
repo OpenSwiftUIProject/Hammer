@@ -96,7 +96,8 @@ final class AppKitEventGeneratorTests: XCTestCase {
             panel.close()
             previousKeyWindow?.makeKey()
         }
-        let view = NSView()
+        // A non-key panel requires first-mouse acceptance on macOS 15.
+        let view = FirstMouseAcceptingView()
         let action = ActionRecorder()
         let recognizer = NSClickGestureRecognizer(target: action, action: #selector(action.record))
         recognizer.numberOfClicksRequired = 2
@@ -274,6 +275,31 @@ final class AppKitEventGeneratorTests: XCTestCase {
 
 }
 
+extension AppKitEventGeneratorTests {
+    func testClicksOnViewsThatRejectFirstMouse() async throws {
+        for clickCount in [1, 2] {
+            let root = FirstMouseRejectingView()
+            let child = FirstMouseRejectingView(frame: NSRect(x: 20, y: 20, width: 100, height: 100))
+            root.addSubview(child)
+            let action = ActionRecorder()
+            let recognizer = NSClickGestureRecognizer(target: action, action: #selector(action.record))
+            recognizer.numberOfClicksRequired = clickCount
+            root.addGestureRecognizer(recognizer)
+
+            try await withWindow(view: root) { events in
+                let wasActive = NSApp.isActive
+                let keyWindow = NSApp.keyWindow
+                XCTAssertFalse(root.acceptsFirstMouse(for: nil))
+                XCTAssertFalse(child.acceptsFirstMouse(for: nil))
+                try await events.mouseClick(at: child, numberOfTimes: clickCount)
+                try await events.waitUntil(action.count == 1, timeout: 1)
+                XCTAssertEqual(NSApp.isActive, wasActive)
+                XCTAssertTrue(NSApp.keyWindow === keyWindow)
+            }
+        }
+    }
+}
+
 private extension AppKitEventGeneratorTests {
     func withWindow(
         view: NSView,
@@ -310,6 +336,16 @@ private final class ActionRecorder: NSObject {
             states.append(recognizer.state)
         }
     }
+}
+
+@MainActor
+private final class FirstMouseAcceptingView: NSView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+@MainActor
+private final class FirstMouseRejectingView: NSView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { false }
 }
 
 @MainActor
