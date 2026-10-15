@@ -330,7 +330,23 @@ public final class EventGenerator {
     }
 
     public var isWindowReady: Bool {
-        return self.hasVisibleWindowContent && self.window.isKeyWindow
+        return self.hasVisibleWindowContent && self.window.isKeyWindow && self.mapsCGEventLocations
+    }
+
+    /// Whether `NSEvent(cgEvent:)` maps window locations with the window's current frame.
+    ///
+    /// Dragged events go through a `CGEvent` to carry deltas. `NSEvent(cgEvent:)` maps the
+    /// global location back with window server geometry instead of `NSWindow.frame`, and
+    /// AppKit updates that geometry asynchronously after the window is created or moved.
+    private var mapsCGEventLocations: Bool {
+        let location = NSPoint.zero
+        guard let event = NSEvent.mouseEvent(
+            with: .mouseMoved, location: location, modifierFlags: [], timestamp: 0,
+            windowNumber: self.window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0
+        ), let cgEvent = event.cgEvent, let mappedEvent = NSEvent(cgEvent: cgEvent) else {
+            return false
+        }
+        return mappedEvent.locationInWindow == location
     }
 
     private var hasVisibleWindowContent: Bool {
