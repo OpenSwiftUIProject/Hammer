@@ -149,11 +149,16 @@ import AppKit
 
 /// A reusable test window that receives events without taking application focus.
 ///
-/// The window stays outside all screens by default. Set `HAMMER_SHOW_TEST_WINDOW=1`
-/// or pass `showWindow: true` to display it while debugging.
+/// The window stays at a fixed position outside all screens by default. Set
+/// `HAMMER_SHOW_TEST_WINDOW=1` or pass `showWindow: true` to display it while debugging.
 @MainActor
 public final class HammerWindow: NSWindow {
     private var isClosed = false
+
+    // The window server applies frame changes asynchronously, and NSEvent(cgEvent:) maps
+    // locations with its geometry. Like WebKitTestRunnerWindow, keep the position fixed and
+    // apply only size changes so synthetic events do not race a pending move.
+    private var keepsOriginFixed = false
 
     // AppKit must treat this test surface as key to dispatch the first mouse down.
     // Keep this state local to the window instead of changing NSApplication.keyWindow.
@@ -169,9 +174,11 @@ public final class HammerWindow: NSWindow {
     public init(size: CGSize,
                 showWindow: Bool = ProcessInfo.processInfo.environment["HAMMER_SHOW_TEST_WINDOW"] == "1") {
         let screens = NSScreen.screens.reduce(NSRect.zero) { $0.union($1.frame) }
-        let origin = NSPoint(x: screens.minX - size.width - 100, y: screens.minY)
+        // Leave room for later size changes, because the origin no longer follows them.
+        let origin = NSPoint(x: screens.minX - 10_000, y: screens.minY)
         super.init(contentRect: NSRect(origin: origin, size: size),
                    styleMask: showWindow ? [.titled] : [.borderless], backing: .buffered, defer: false)
+        self.keepsOriginFixed = !showWindow
         self.isReleasedWhenClosed = false
         self.animationBehavior = .none
         self.hasShadow = false
@@ -189,6 +196,24 @@ public final class HammerWindow: NSWindow {
         // AppKit must stop observing this window as key before it is destroyed.
         self.isClosed = true
         super.close()
+    }
+
+    public override func setFrameOrigin(_ point: NSPoint) {
+        guard !self.keepsOriginFixed else { return }
+        super.setFrameOrigin(point)
+    }
+
+    public override func setFrame(_ frameRect: NSRect, display flag: Bool) {
+        super.setFrame(self.frameKeepingOrigin(frameRect), display: flag)
+    }
+
+    public override func setFrame(_ frameRect: NSRect, display displayFlag: Bool, animate animateFlag: Bool) {
+        super.setFrame(self.frameKeepingOrigin(frameRect), display: displayFlag, animate: animateFlag)
+    }
+
+    private func frameKeepingOrigin(_ frameRect: NSRect) -> NSRect {
+        guard self.keepsOriginFixed else { return frameRect }
+        return NSRect(origin: self.frame.origin, size: frameRect.size)
     }
 }
 #endif
